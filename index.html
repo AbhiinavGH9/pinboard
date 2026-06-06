@@ -105,8 +105,18 @@
                     <span class="w-2 h-2 rounded-full bg-applePrimaryOnDark"></span>
                     <span id="active-count-badge">6 Templates</span>
                 </div>
+                <!-- Export trigger option inside dropdown -->
+                <button onclick="exportTemplates(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    Export Templates
+                </button>
+                <!-- Import trigger option inside dropdown -->
+                <button onclick="triggerImport(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    Import Templates
+                </button>
                 <!-- Reset trigger option inside dropdown -->
-                <button onclick="triggerResetDefaults(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                <button onclick="triggerResetDefaults(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 border-t border-[#2a2a2c]">
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                     Reset Defaults
                 </button>
@@ -254,6 +264,9 @@
             <p class="text-[11px] text-zinc-400 mt-0.5">Template saved to clipboard</p>
         </div>
     </div>
+
+    <!-- Hidden file input for importing templates -->
+    <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="handleImport(event)" />
 
     <script>
         // Preset default templates for first-time use
@@ -443,6 +456,78 @@
                 "Reset System",
                 "bg-red-600 hover:bg-red-700"
             );
+        }
+
+        // Export all templates to a JSON file
+        function exportTemplates() {
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(templates, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", "pinboard_templates.json");
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showToast("Templates Exported", "Save file downloaded successfully.");
+            } catch (err) {
+                console.error("Export failed:", err);
+                showToast("Export Failed", "Could not generate file.");
+            }
+        }
+
+        // Trigger file input click
+        function triggerImport() {
+            document.getElementById('import-file-input').click();
+        }
+
+        // Handle selected file and import data
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // Validate imported format
+                    if (Array.isArray(importedData)) {
+                        // Sanitize imported items to ensure they contain title and body
+                        const validated = importedData.filter(item => item && typeof item === 'object' && item.title && item.body).map((item, index) => {
+                            return {
+                                id: item.id || 'imported_' + Date.now() + '_' + index,
+                                title: item.title,
+                                body: item.body
+                            };
+                        });
+
+                        if (validated.length > 0) {
+                            showCustomConfirm(
+                                "Import Templates?",
+                                `Importing will replace your current ${templates.length} templates with ${validated.length} imported templates. Proceed?`,
+                                function() {
+                                    templates = validated;
+                                    saveToLocalStorage();
+                                    renderTemplates();
+                                    showToast("Import Successful", `Successfully imported ${validated.length} templates.`);
+                                },
+                                "Import Now",
+                                "bg-applePrimary hover:bg-applePrimaryFocus"
+                            );
+                        } else {
+                            showToast("Import Failed", "No valid templates found in file.");
+                        }
+                    } else {
+                        showToast("Import Failed", "Invalid file structure. Must be a JSON array.");
+                    }
+                } catch (err) {
+                    console.error("Import parsing failed:", err);
+                    showToast("Import Failed", "Failed to parse JSON file.");
+                }
+                // Clear input value so same file can be reselected
+                event.target.value = '';
+            };
+            reader.readAsText(file);
         }
 
         function renderTemplates() {
