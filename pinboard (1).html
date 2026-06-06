@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinboard — Creator Response Vault</title>
+    <!-- Google Fonts: Inter with multiple weights -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons for high-fidelity vector icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            letter-spacing: -0.011em;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Apple tight display tracking rules */
+        .apple-tight-title {
+            letter-spacing: -0.022em;
+        }
+        /* Micro-interactions: scale-down effect for active elements */
+        .btn-active-scale:active {
+            transform: scale(0.96);
+        }
+        /* Custom scrollbar to keep layout clean and minimalist */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c2c2e;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3a3a3c;
+        }
+        
+        /* Drag and Drop visual aesthetics */
+        .dragging {
+            opacity: 0.4;
+            border: 2px dashed #2997ff !important;
+            background-color: #121214 !important;
+        }
+        .drag-over {
+            border-top: 4px solid #2997ff !important;
+            transform: translateY(2px);
+        }
+    </style>
+    <script>
+        // Custom Tailwind config values based on DESIGN-apple.md
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        applePrimary: '#0066cc',
+                        applePrimaryFocus: '#0071e3',
+                        applePrimaryOnDark: '#2997ff',
+                        appleInk: '#1d1d1f',
+                        appleTile1: '#1c1c1e',
+                        appleTile2: '#2a2a2c',
+                        appleHairline: '#2c2c2e',
+                        appleParchment: '#1c1c1e',
+                    },
+                    borderRadius: {
+                        'apple-xs': '5px',
+                        'apple-sm': '8px',
+                        'apple-md': '11px',
+                        'apple-lg': '18px',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="overflow-x-hidden min-h-screen flex flex-col">
+
+    <!-- Global Nav (True Black thin nav with clean Menu Dropdown only) -->
+    <nav class="h-[44px] bg-[#000000] border-b border-appleHairline px-6 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <i data-lucide="pin" class="w-4 h-4 text-applePrimaryOnDark"></i>
+            <span class="text-[14px] font-bold tracking-tight text-white select-none">Pinboard</span>
+        </div>
+        
+        <!-- Menu Dropdown Control -->
+        <div class="relative">
+            <button onclick="toggleNavDropdown(event)" class="text-zinc-400 hover:text-white transition-colors p-2 flex items-center justify-center rounded-full hover:bg-neutral-900" id="menu-btn" title="Open Settings">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+            
+            <!-- Absolute Dropdown Card Panel -->
+            <div id="nav-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-[#1c1c1e] border border-appleHairline rounded-apple-md py-2 z-50 select-none">
+                <div class="px-4 py-1.5 border-b border-[#2a2a2c] text-[11px] text-zinc-500 uppercase font-semibold tracking-wider">
+                    Quick Controls
+                </div>
+                <!-- Bullet Point count display -->
+                <div class="px-4 py-2.5 text-zinc-300 text-[13px] flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-applePrimaryOnDark"></span>
+                    <span id="active-count-badge">6 Templates</span>
+                </div>
+                <!-- Export trigger option inside dropdown -->
+                <button onclick="exportTemplates(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    Export Templates
+                </button>
+                <!-- Import trigger option inside dropdown -->
+                <button onclick="triggerImport(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    Import Templates
+                </button>
+                <!-- Reset trigger option inside dropdown -->
+                <button onclick="triggerResetDefaults(); closeNavDropdown();" class="w-full text-left px-4 py-2.5 text-[13px] text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 border-t border-[#2a2a2c]">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    Reset Defaults
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content Header & Hero Banner -->
+    <header class="max-w-4xl mx-auto w-full px-6 pt-12 pb-6 text-center">
+        <h1 class="text-4xl md:text-5xl font-bold apple-tight-title text-white mb-4">
+            Pinboard
+        </h1>
+        <p class="text-[17px] text-zinc-400 max-w-2xl mx-auto leading-relaxed flex flex-wrap items-center justify-center gap-y-2">
+            <span>My enemies are many, My equals are none</span>
+            <span class="bg-red-950/80 border border-red-700/80 text-red-400 text-[12px] font-bold px-3 py-1 rounded-full uppercase tracking-wider select-none md:ml-2.5 inline-flex items-center gap-1">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-red-400"></i>
+                beware of scammers
+            </span>
+        </p>
+    </header>
+
+    <!-- Control bar (Extended Full-Width Search & New Template Button) -->
+    <section class="max-w-4xl mx-auto w-full px-6 mb-8">
+        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between bg-appleTile1 border border-appleHairline p-4 rounded-apple-lg">
+            
+            <!-- Fully Expanded Search Input -->
+            <div class="relative w-full sm:flex-grow">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input 
+                    type="text" 
+                    id="search-box" 
+                    oninput="filterTemplates()"
+                    placeholder="Search templates or keywords..." 
+                    class="w-full bg-[#0a0a0c] border border-appleHairline rounded-full py-2.5 pl-10 pr-4 text-[14px] text-white focus:outline-none focus:border-applePrimaryOnDark transition-colors"
+                />
+            </div>
+
+            <!-- Add Scenario Action Button (Single line guarantee with whitespace-nowrap) -->
+            <button onclick="openModal()" class="w-full sm:w-auto px-5 py-2.5 bg-applePrimary hover:bg-applePrimaryFocus text-white rounded-full text-[14px] font-semibold transition-colors flex items-center justify-center gap-2 btn-active-scale whitespace-nowrap shrink-0">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                New Template
+            </button>
+        </div>
+        
+        <!-- Drag-and-drop helper tag -->
+        <div class="mt-2 text-right">
+            <span class="text-[11px] text-zinc-500 font-medium flex items-center justify-end gap-1 select-none">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                Drag and drop the grip handle to arrange your templates priority
+            </span>
+        </div>
+    </section>
+
+    <!-- Scenarios List Container -->
+    <main class="max-w-4xl mx-auto w-full px-6 flex-grow pb-16">
+        <div id="templates-grid" class="space-y-4">
+            <!-- Dynamic scenario cards will be rendered here via JS -->
+        </div>
+
+        <!-- Fallback empty state -->
+        <div id="empty-state" class="hidden text-center py-16 bg-appleTile1 border border-appleHairline rounded-apple-lg">
+            <div class="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="folder-open" class="w-6 h-6 text-zinc-500"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-1">No templates found</h3>
+            <p class="text-zinc-400 text-sm max-w-md mx-auto">Try refining your search terms or create a custom message with the button above.</p>
+        </div>
+    </main>
+
+    <!-- Modal: Add / Edit Scenario -->
+    <div id="template-modal" class="fixed inset-0 bg-[#000000]/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#1c1c1e] border border-[#2a2a2c] w-full max-w-xl rounded-apple-lg overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-appleHairline flex items-center justify-between">
+                <h3 id="modal-title" class="text-lg font-bold text-white apple-tight-title">Add New Scenario</h3>
+                <button onclick="closeModal()" class="text-zinc-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <form id="template-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-id" />
+                
+                <!-- Scenario Title -->
+                <div>
+                    <label class="block text-zinc-400 text-[13px] font-semibold mb-1.5 uppercase tracking-wider">MESSAGE</label>
+                    <input 
+                        type="text" 
+                        id="form-title" 
+                        required
+                        placeholder="e.g., Client requests free sample thumbnail" 
+                        class="w-full bg-[#0d0d0e] border border-appleHairline rounded-apple-sm py-2 px-3 text-[14px] text-white focus:outline-none focus:border-applePrimaryOnDark"
+                    />
+                </div>
+
+                <!-- Reply Body Text -->
+                <div>
+                    <label class="block text-zinc-400 text-[13px] font-semibold mb-1.5 uppercase tracking-wider">Your Template Message</label>
+                    <textarea 
+                        id="form-body" 
+                        required
+                        rows="6"
+                        placeholder="Type out the exact template reply message to copy..." 
+                        class="w-full bg-[#0d0d0e] border border-appleHairline rounded-apple-sm py-2 px-3 text-[14px] text-white focus:outline-none focus:border-applePrimaryOnDark resize-none leading-relaxed"
+                    ></textarea>
+                </div>
+
+                <!-- Action buttons inside modal -->
+                <div class="pt-4 flex items-center justify-end gap-3 border-t border-appleHairline">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-neutral-900 border border-appleHairline text-zinc-300 rounded-full text-[13px] font-semibold hover:bg-neutral-800 transition-colors btn-active-scale">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-applePrimary hover:bg-applePrimaryFocus text-white rounded-full text-[13px] font-semibold transition-colors btn-active-scale">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Apple-Style Reusable Custom Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-[#000000]/85 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-[#1c1c1e] border border-[#2a2a2c] w-full max-w-sm rounded-apple-lg overflow-hidden flex flex-col p-6 space-y-4">
+            <h4 id="confirm-title" class="text-md font-bold text-white apple-tight-title">Are you sure?</h4>
+            <p id="confirm-message" class="text-sm text-zinc-400 leading-normal">This action cannot be undone.</p>
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button id="confirm-cancel-btn" class="px-4 py-2 bg-neutral-900 border border-appleHairline text-zinc-300 rounded-full text-[13px] font-semibold hover:bg-neutral-800 transition-colors btn-active-scale">
+                    Cancel
+                </button>
+                <button id="confirm-action-btn" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full text-[13px] font-semibold transition-colors btn-active-scale">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div id="toast-notification" class="fixed bottom-6 right-6 bg-[#1c1c1e] border border-applePrimaryOnDark text-white py-3.5 px-5 rounded-apple-md flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none z-50">
+        <div class="w-5 h-5 rounded-full bg-applePrimary flex items-center justify-center">
+            <i data-lucide="check" class="w-3 h-3 text-white"></i>
+        </div>
+        <div>
+            <p class="text-[13px] font-bold text-white leading-none">Copied!</p>
+            <p class="text-[11px] text-zinc-400 mt-0.5">Template saved to clipboard</p>
+        </div>
+    </div>
+
+    <!-- Hidden file input for importing templates -->
+    <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="handleImport(event)" />
+
+    <script>
+        // Preset default templates for first-time use
+        const defaultTemplates = [
+            {
+                id: 't1',
+                title: 'The "Paid Test" Proposal',
+                body: "Awesome! I'd love to start with a paid test thumbnail to see if we're a good fit. What's your current fee for a single video, and how fast can you deliver the draft?"
+            },
+            {
+                id: 't2',
+                title: 'The Retainer Pitch',
+                body: "Since we publish 3 videos a week, we prefer working on a monthly retainer. Can you offer a bundle discount if we commit to 12 thumbnails per month?"
+            },
+            {
+                id: 't3',
+                title: 'Portfolio Request',
+                body: "Hey! Your style looks great. Do you have a portfolio of gaming/finance thumbnails specifically? Also, please let me know your average turnaround time per asset."
+            },
+            {
+                id: 't4',
+                title: 'Unpaid Test Proposal Refusal',
+                body: "Thanks for reaching out! We don't do free trials, but we can offer a paid 50% deposit for a first draft. If you love it, we'll pay the rest and move forward!"
+            },
+            {
+                id: 't5',
+                title: 'Under Budget Negotiation',
+                body: "Your work is top-tier, but our current budget is capped at $50 per thumbnail. If we guarantee weekly work and streamline the feedback loop, can we meet there?"
+            },
+            {
+                id: 't6',
+                title: 'The Revision & Feedback Loop',
+                body: "Love the direction! Could we make the main face slightly larger, increase the contrast on the text, and change the background glow to a vibrant blue? Thanks!"
+            }
+        ];
+
+        let templates = [];
+        let onConfirmCallback = null;
+        let dragSourceEl = null;
+
+        // Navigation Dropdown toggling
+        function toggleNavDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('nav-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        function closeNavDropdown() {
+            const dropdown = document.getElementById('nav-dropdown');
+            dropdown.classList.add('hidden');
+        }
+
+        // Custom confirm modal trigger
+        function showCustomConfirm(title, message, onConfirm, actionText = "Delete", actionColorClass = "bg-red-600 hover:bg-red-700") {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            
+            const actionBtn = document.getElementById('confirm-action-btn');
+            actionBtn.textContent = actionText;
+            actionBtn.className = `px-5 py-2 text-white rounded-full text-[13px] font-semibold transition-colors btn-active-scale ${actionColorClass}`;
+            
+            onConfirmCallback = onConfirm;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            onConfirmCallback = null;
+        }
+
+        // HTML5 Drag and Drop Handlers
+        function handleDragStart(e) {
+            dragSourceEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.getAttribute('data-id'));
+            
+            // Add custom dragging aesthetic after a brief tick to allow native drag image setup
+            setTimeout(() => {
+                this.classList.add('dragging');
+            }, 10);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault(); 
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            if (this !== dragSourceEl) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            if (dragSourceEl !== this) {
+                const draggedId = e.dataTransfer.getData('text/plain');
+                const targetId = this.getAttribute('data-id');
+                
+                const draggedIndex = templates.findIndex(t => t.id === draggedId);
+                const targetIndex = templates.findIndex(t => t.id === targetId);
+                
+                if (draggedIndex !== -1 && targetIndex !== -1) {
+                    // Splice and reinsert template item
+                    const [removed] = templates.splice(draggedIndex, 1);
+                    templates.splice(targetIndex, 0, removed);
+                    
+                    saveToLocalStorage();
+                    renderTemplates();
+                    showToast("Order Updated", "Your personalized card layout has been aligned.");
+                }
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Cleanup any visual drop zones remaining
+            const items = document.querySelectorAll('.draggable-card');
+            items.forEach(item => {
+                item.classList.remove('drag-over');
+                item.classList.remove('dragging');
+            });
+        }
+
+        // Load templates on runtime
+        function initApp() {
+            // Register confirm modal buttons
+            document.getElementById('confirm-cancel-btn').addEventListener('click', closeConfirmModal);
+            document.getElementById('confirm-action-btn').addEventListener('click', () => {
+                if (onConfirmCallback) onConfirmCallback();
+                closeConfirmModal();
+            });
+
+            // Global click handler to dismiss open dropdown elements automatically
+            window.addEventListener('click', function(e) {
+                const dropdown = document.getElementById('nav-dropdown');
+                const menuBtn = document.getElementById('menu-btn');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    if (e.target !== menuBtn && !menuBtn.contains(e.target) && e.target !== dropdown && !dropdown.contains(e.target)) {
+                        closeNavDropdown();
+                    }
+                }
+            });
+
+            const stored = localStorage.getItem('pinboard_templates');
+            if (stored) {
+                templates = JSON.parse(stored);
+            } else {
+                templates = [...defaultTemplates];
+                saveToLocalStorage();
+            }
+            renderTemplates();
+            lucide.createIcons();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('pinboard_templates', JSON.stringify(templates));
+            updateHeaderBadge();
+        }
+
+        function updateHeaderBadge() {
+            const text = `${templates.length} Templates`;
+            document.getElementById('active-count-badge').textContent = text;
+        }
+
+        function triggerResetDefaults() {
+            showCustomConfirm(
+                "Reset Outreach Templates?", 
+                "Are you sure you want to reset all templates? All of your custom modifications will be deleted.",
+                function() {
+                    templates = [...defaultTemplates];
+                    saveToLocalStorage();
+                    renderTemplates();
+                    showToast("System Reset Successful", "Restored system default scenarios");
+                },
+                "Reset System",
+                "bg-red-600 hover:bg-red-700"
+            );
+        }
+
+        // Export all templates to a JSON file
+        function exportTemplates() {
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(templates, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", "pinboard_templates.json");
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showToast("Templates Exported", "Save file downloaded successfully.");
+            } catch (err) {
+                console.error("Export failed:", err);
+                showToast("Export Failed", "Could not generate file.");
+            }
+        }
+
+        // Trigger file input click
+        function triggerImport() {
+            document.getElementById('import-file-input').click();
+        }
+
+        // Handle selected file and import data
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // Validate imported format
+                    if (Array.isArray(importedData)) {
+                        // Sanitize imported items to ensure they contain title and body
+                        const validated = importedData.filter(item => item && typeof item === 'object' && item.title && item.body).map((item, index) => {
+                            return {
+                                id: item.id || 'imported_' + Date.now() + '_' + index,
+                                title: item.title,
+                                body: item.body
+                            };
+                        });
+
+                        if (validated.length > 0) {
+                            showCustomConfirm(
+                                "Import Templates?",
+                                `Importing will replace your current ${templates.length} templates with ${validated.length} imported templates. Proceed?`,
+                                function() {
+                                    templates = validated;
+                                    saveToLocalStorage();
+                                    renderTemplates();
+                                    showToast("Import Successful", `Successfully imported ${validated.length} templates.`);
+                                },
+                                "Import Now",
+                                "bg-applePrimary hover:bg-applePrimaryFocus"
+                            );
+                        } else {
+                            showToast("Import Failed", "No valid templates found in file.");
+                        }
+                    } else {
+                        showToast("Import Failed", "Invalid file structure. Must be a JSON array.");
+                    }
+                } catch (err) {
+                    console.error("Import parsing failed:", err);
+                    showToast("Import Failed", "Failed to parse JSON file.");
+                }
+                // Clear input value so same file can be reselected
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templates-grid');
+            const searchVal = document.getElementById('search-box').value.toLowerCase();
+            container.innerHTML = '';
+            
+            let filtered = templates.filter(t => {
+                return t.title.toLowerCase().includes(searchVal) || t.body.toLowerCase().includes(searchVal);
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+            } else {
+                document.getElementById('empty-state').classList.add('hidden');
+            }
+
+            filtered.forEach(t => {
+                const card = document.createElement('div');
+                card.className = "draggable-card bg-appleTile1 border border-appleHairline rounded-apple-lg overflow-hidden transition-all duration-200 hover:border-neutral-700 select-none";
+                card.id = `card-${t.id}`;
+                card.setAttribute('data-id', t.id);
+                card.setAttribute('draggable', 'true');
+                
+                // Attach HTML5 Drag-and-Drop event listeners
+                card.addEventListener('dragstart', handleDragStart, false);
+                card.addEventListener('dragenter', handleDragEnter, false);
+                card.addEventListener('dragover', handleDragOver, false);
+                card.addEventListener('dragleave', handleDragLeave, false);
+                card.addEventListener('drop', handleDrop, false);
+                card.addEventListener('dragend', handleDragEnd, false);
+                
+                card.innerHTML = `
+                    <!-- Card Header / Collapsed view trigger -->
+                    <div class="p-5 flex items-center justify-between cursor-pointer">
+                        <div class="flex items-center gap-3 flex-grow" onclick="toggleAccordion('${t.id}')">
+                            <!-- Drag Handle indicator -->
+                            <div class="cursor-grab text-zinc-500 hover:text-white p-1 transition-colors drag-handle" title="Drag to reorder">
+                                <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-[#0a0a0c] border border-appleHairline flex items-center justify-center pointer-events-none">
+                                <i data-lucide="file-text" class="w-4 h-4 text-applePrimaryOnDark"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-[16px] font-bold text-white tracking-tight leading-snug">${escapeHTML(t.title)}</h3>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" onclick="toggleAccordion('${t.id}')">
+                            <!-- Toggle icon -->
+                            <div id="chevron-${t.id}" class="w-8 h-8 rounded-full border border-appleHairline hover:bg-neutral-900 transition-all flex items-center justify-center">
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-zinc-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Body Content / Expandable -->
+                    <div id="accordion-${t.id}" class="hidden border-t border-appleHairline bg-[#0d0d0e]">
+                        <div class="p-5 space-y-4">
+                            <!-- Response Text Wrapper -->
+                            <div class="flex flex-col md:flex-row gap-4 items-start">
+                                <div class="flex-grow w-full bg-[#1c1c1e] border border-appleHairline p-4 rounded-apple-md">
+                                    <p id="body-text-${t.id}" class="text-[15px] leading-relaxed text-zinc-300 font-medium whitespace-pre-wrap select-all">${escapeHTML(t.body)}</p>
+                                </div>
+                                
+                                <!-- Copy Button next to content -->
+                                <button onclick="copyToClipboard('${t.id}')" class="w-full md:w-auto px-5 py-3 bg-applePrimary hover:bg-applePrimaryFocus text-white rounded-full text-[13px] font-bold transition-all flex items-center justify-center gap-2 flex-shrink-0 btn-active-scale" title="Copy to Clipboard">
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                    <span>Copy Reply</span>
+                                </button>
+                            </div>
+
+                            <!-- Footer/Actions toolbar inside expanded card -->
+                            <div class="flex items-center justify-between pt-4 border-t border-[#1c1c1e] text-[13px] text-zinc-500">
+                                <span class="flex items-center gap-1.5">
+                                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                                    Format preserved
+                                </span>
+                                <div class="flex items-center gap-4">
+                                    <button onclick="editTemplate('${t.id}')" class="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                        Edit
+                                    </button>
+                                    <button onclick="triggerDeleteTemplate('${t.id}')" class="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function copyToClipboard(id) {
+            const textElement = document.getElementById(`body-text-${id}`);
+            if (!textElement) return;
+
+            // Fallback copy strategy
+            const textArea = document.createElement("textarea");
+            textArea.value = textElement.innerText;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast("Copied successfully!", "You can now paste your outreach reply template.");
+                } else {
+                    showToast("Failed to copy", "Please select and copy manually.");
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function toggleAccordion(id) {
+            const block = document.getElementById(`accordion-${id}`);
+            const chevron = document.getElementById(`chevron-${id}`);
+            
+            if (block.classList.contains('hidden')) {
+                block.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                block.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        function filterTemplates() {
+            renderTemplates();
+        }
+
+        function openModal() {
+            document.getElementById('modal-title').textContent = "Add New Message Vault";
+            document.getElementById('edit-id').value = "";
+            document.getElementById('template-form').reset();
+            document.getElementById('template-modal').classList.remove('hidden');
+        }
+
+        // Close Modal Dialog
+        function closeModal() {
+            document.getElementById('template-modal').classList.add('hidden');
+        }
+
+        // Form Submit Handler (Saves changes or inserts new template on top)
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('edit-id').value;
+            const title = document.getElementById('form-title').value;
+            const body = document.getElementById('form-body').value;
+
+            if (editId) {
+                // Update mode
+                const index = templates.findIndex(t => t.id === editId);
+                if (index !== -1) {
+                    templates[index] = { id: editId, title, body };
+                    showToast("Template Updated", "Changes were successfully saved.");
+                }
+            } else {
+                // Add mode: Prepend to the top of the collection list!
+                const newId = 't_' + Date.now();
+                templates.unshift({ id: newId, title, body });
+                showToast("Template Created", "New message scenario successfully pinned to top.");
+            }
+
+            saveToLocalStorage();
+            closeModal();
+            renderTemplates();
+        }
+
+        // Edit Scenario Action Trigger
+        function editTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (!template) return;
+
+            document.getElementById('modal-title').textContent = "Edit Message Vault";
+            document.getElementById('edit-id').value = template.id;
+            document.getElementById('form-title').value = template.title;
+            document.getElementById('form-body').value = template.body;
+
+            document.getElementById('template-modal').classList.remove('hidden');
+        }
+
+        // Delete Scenario Action Trigger (With custom dark-mode confirm)
+        function triggerDeleteTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (!template) return;
+
+            showCustomConfirm(
+                "Delete Template?",
+                `Are you sure you want to permanently delete the template: "${template.title}"?`,
+                function() {
+                    templates = templates.filter(t => t.id !== id);
+                    saveToLocalStorage();
+                    renderTemplates();
+                    showToast("Template Deleted", "Outreach scenario removed from vault.");
+                }
+            );
+        }
+
+        // Custom Toast Notification display logic
+        let toastTimeout;
+        function showToast(title, subtitle) {
+            const toast = document.getElementById('toast-notification');
+            toast.querySelector('p.font-bold').textContent = title;
+            toast.querySelector('p.text-zinc-400').textContent = subtitle;
+
+            clearTimeout(toastTimeout);
+            
+            // Show toast slide in
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            // Fade and slide out after 3.5 seconds
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3500);
+        }
+
+        // Helper function to sanitize inputs
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+        // Setup onload listener
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
